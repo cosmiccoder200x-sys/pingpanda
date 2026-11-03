@@ -1,4 +1,4 @@
-"""Resolving a host and checking a URL."""
+"""Resolving hosts and checking URLs asynchronously."""
 
 from __future__ import annotations
 
@@ -12,11 +12,9 @@ from tqdm import tqdm
 
 from pingpanda.models import UrlResult
 
-# How long a single request may take, in seconds
 DEFAULT_TIMEOUT_SECONDS = 10.0
 
 
-# Function to resolve hostname to IP:Port
 def resolve_ip_and_port(url):
     try:
         parsed = urlparse(url)
@@ -29,7 +27,6 @@ def resolve_ip_and_port(url):
         return "IP:Port Not Found"
 
 
-# Function to make sure the URL has a scheme httpx understands
 def normalize_url(url):
     url = url.strip()
     if "://" not in url:
@@ -37,7 +34,6 @@ def normalize_url(url):
     return url
 
 
-# Function to check URL status and redirection
 async def check_url_status(session, url_id, url):
     url = normalize_url(url)
     started = time.perf_counter()
@@ -52,7 +48,6 @@ async def check_url_status(session, url_id, url):
         return UrlResult(url_id, url, None, elapsed, None, "IP:Port Not Found", None)
 
     final_url = str(response.url)
-
     original_ip_port = resolve_ip_and_port(url)
     redirect_ip_port = resolve_ip_and_port(final_url) if final_url != url else None
     redirect_to = final_url if final_url != url else None
@@ -69,21 +64,62 @@ async def check_url_status(session, url_id, url):
     )
 
 
-# Check every URL of the collection and return the results by url id
-async def check_all(urls):
-    results = {}
-    async with httpx.AsyncClient() as session:
-        tasks = [
-            check_url_status(session, url_id, url) for url_id, url in enumerate(urls)
-        ]
-        if len(urls) > 1:
-            with tqdm(total=len(urls), desc="Checking URLs") as pbar:
-                for coro in asyncio.as_completed(tasks):
-                    result = await coro
-                    results[result.url_id] = result
-                    pbar.update(1)
-        else:
-            for coro in asyncio.as_completed(tasks):
-                result = await coro
+async def check_all(urls, initial_results=None, on_result=None):
+    """Check unfinished URLs and optionally persist each newly completed result.
+
+    URL IDs always refer to the original input order. Existing checkpoint results
+    are retained and are not requested again.
+    """
+    urls = list(urls)
+    results = dict(initial_results or {})
+
+    for url_id, result in results.items():
+        if (
+            isinstance(url_id, bool)
+            or not isinstance(url_id, int)
+            or not 0 <= url_id < len(urls)
+            or result.url_id != url_id
+            or result.url != normalize_url(urls[url_id])
+        ):
+            raise ValueError(f"Initial result {url_id!r} does not match the URL list.")
+
+    pending = [
+        (url_id, url)
+        for url_id, url in enumerate(urls)
+        if url_id not in results
+    ]
+    if not pending:
+        return dict(sorted(results.items()))
+
+    progress = tqdm(
+        total=len(urls),
+        initial=len(results),
+        desc="Checking URLs",
+    ) if len(urls) > 1 else None
+
+    tasks = []
+    try:
+        async with httpx.AsyncClient() as session:
+            tasks = [
+                asyncio.create_task(check_url_status(session, url_id, url))
+                for url_id, url in pending
+            ]
+            for completed_task in asyncio.as_completed(tasks):
+                result = await completed_task
                 results[result.url_id] = result
-    return results
+                if on_result is not None:
+                    on_result(dict(results))
+                if progress is not None:
+                    progress.update(1)
+    except BaseException:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+    finally:
+        if progress is not None:
+            progress.close()
+
+    return dict(sorted(results.items()))
