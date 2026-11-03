@@ -58,7 +58,7 @@ pingpanda/
 ├── models.py            Data model for a checked URL
 ├── network.py           URL preparation, address lookup, and checks
 ├── report.py            Grouping, formatting, and saving results
-├── checkpoint.py       Atomic checkpoint storage and validation
+├── checkpoint.py        Atomic checkpoint storage and validation
 └── cli.py               Argument parsing and application flow
 tests/                   Test suite (no external network access)
 .github/                 CI workflow and issue/PR templates
@@ -131,6 +131,21 @@ Save the report to a file:
 ```bash
 python url-status-checker.py -l urls.txt -o results.txt
 ```
+
+Resume an interrupted scan using the default checkpoint:
+
+```powershell
+python url-status-checker.py -l urls.txt --resume
+```
+
+Choose a custom checkpoint path:
+
+```powershell
+python url-status-checker.py -l urls.txt --checkpoint .\\state\\scan.json
+python url-status-checker.py -l urls.txt --checkpoint .\\state\\scan.json --resume
+```
+
+PingPanda saves progress after each completed URL to `.pingpanda-checkpoint.json` by default. A checkpoint is tied to the exact ordered URL list. If the input changes or is reordered, resume stops with a validation error rather than applying results to the wrong URLs.
 
 Show the built-in help:
 

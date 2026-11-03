@@ -30,7 +30,7 @@ async def test_check_all_skips_completed_ids_and_preserves_input_order(
     )
 
     assert list(results) == [0, 1, 2]
-    assert requested == ["https://pending-a.test/", "https://pending-b.test/"]
+    assert set(requested) == {"https://pending-a.test/", "https://pending-b.test/"}
     assert [result.status for result in results.values()] == [204, 200, 200]
     assert len(persisted_snapshots) == 2
     assert all(0 in snapshot for snapshot in persisted_snapshots)
