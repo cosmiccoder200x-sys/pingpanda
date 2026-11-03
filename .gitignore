@@ -52,3 +52,7 @@ urls.txt
 
 # Organiser material, kept out of the public repository
 EVENT_PREP/
+
+# Resumable scan state (local runtime artifact)
+.pingpanda-checkpoint.json
+*.checkpoint.json
