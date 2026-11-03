@@ -34,7 +34,6 @@ async def test_connection_error_is_reported_as_invalid(checker):
     assert result.status_label == "Invalid"
 
 
-@pytest.mark.xfail(strict=True, reason=KNOWN_DEFECT)
 async def test_url_without_scheme_is_checked_over_https(checker, fake_dns):
     seen = {}
 
@@ -74,7 +73,6 @@ async def test_redirect_target_is_reported(checker, fake_dns):
     assert result.redirect_to == "https://target.test/final"
 
 
-@pytest.mark.xfail(strict=True, reason=KNOWN_DEFECT)
 async def test_redirect_ip_belongs_to_the_redirect_target(checker, monkeypatch):
     hosts = {"example.com": "10.0.0.1", "target.test": "10.0.0.2"}
     monkeypatch.setattr(socket, "gethostbyname", lambda host: hosts.get(host, "10.0.0.3"))
