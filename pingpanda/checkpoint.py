@@ -35,7 +35,6 @@ def save_checkpoint(
 ) -> None:
     """Atomically persist completed results for the exact ordered input list."""
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
 
     completed = {}
     for url_id, result in sorted(results.items()):
@@ -67,6 +66,7 @@ def save_checkpoint(
 
     temporary_path = None
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -131,6 +131,7 @@ def load_checkpoint(
 
             if (
                 isinstance(result_id, bool)
+                or not isinstance(result_id, int)
                 or result_id != url_id
                 or result_url != _normalized_url(urls[url_id])
                 or (
