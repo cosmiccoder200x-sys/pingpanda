@@ -1,16 +1,18 @@
-"""The arguments of the tool and what it does with them."""
+"""Command-line interface for PingPanda."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 
+from pingpanda.checkpoint import CheckpointError, load_checkpoint, save_checkpoint
 from pingpanda.constants import BANNER
 from pingpanda.network import check_all
 from pingpanda.report import classify_results, render_report, save_report
 
+DEFAULT_CHECKPOINT = ".pingpanda-checkpoint.json"
 
-# Make sure the terminal is able to print the banner
+
 def make_output_safe():
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -22,33 +24,39 @@ def make_output_safe():
             pass
 
 
-# Argument parser
 def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(description="URL Status Checker")
     parser.add_argument("-d", "--domain", help="Single domain/URL to check")
     parser.add_argument("-l", "--list", help="File containing list of domains/URLs to check")
     parser.add_argument("-o", "--output", help="File to save the output")
+    parser.add_argument(
+        "--checkpoint",
+        default=DEFAULT_CHECKPOINT,
+        metavar="PATH",
+        help=f"Checkpoint file (default: {DEFAULT_CHECKPOINT})",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume unfinished URLs from the checkpoint file",
+    )
     parser.add_argument("-v", "--version", action="store_true", help="Display version information")
     parser.add_argument("-update", action="store_true", help="Update the tool")
     return parser.parse_args(argv)
 
 
-# Read the URLs the user asked for
 def load_urls(args):
-    urls = set()
-
     if args.domain:
-        urls.add(args.domain)
-    elif args.list:
-        with open(args.list, "r") as file:
-            urls.update(file.read().splitlines())
-    else:
-        return None
+        url = args.domain.strip()
+        return [url] if url else []
 
-    return urls
+    if args.list:
+        with open(args.list, "r", encoding="utf-8") as file:
+            return [line.strip() for line in file if line.strip()]
+
+    return None
 
 
-# Main function
 async def main(argv=None):
     make_output_safe()
     args = parse_arguments(argv)
@@ -58,7 +66,7 @@ async def main(argv=None):
         return
 
     if args.update:
-        print("Checking for updates...")  # Implement update logic here
+        print("Checking for updates...")
         return
 
     print(BANNER)
@@ -68,7 +76,30 @@ async def main(argv=None):
         print("No input provided. Use -d or -l option.")
         return
 
-    results = await check_all(urls)
+    initial_results = {}
+    if args.resume:
+        try:
+            initial_results = load_checkpoint(args.checkpoint, urls)
+        except CheckpointError as exc:
+            print(f"Checkpoint error: {exc}", file=sys.stderr)
+            return
+        print(f"Resuming scan: {len(initial_results)} of {len(urls)} URLs already completed.")
+
+    def persist_progress(completed_results):
+        save_checkpoint(args.checkpoint, urls, completed_results)
+
+    try:
+        results = await check_all(
+            urls,
+            initial_results=initial_results,
+            on_result=persist_progress,
+        )
+        # Also create a checkpoint for an empty or already-complete resumed scan.
+        save_checkpoint(args.checkpoint, urls, results)
+    except CheckpointError as exc:
+        print(f"Checkpoint error: {exc}", file=sys.stderr)
+        return
+
     status_codes = classify_results(results)
     render_report(status_codes)
 

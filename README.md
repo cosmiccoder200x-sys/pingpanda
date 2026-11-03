@@ -32,6 +32,8 @@ PingPanda started as [Status Checker](https://github.com/BLACK-SCORP10/url-statu
 - Organise results into status-class sections: 1xx, 2xx, 3xx, 4xx, 5xx, and invalid.
 - Colour-coded terminal output with a progress bar for list runs.
 - Save the report to a text file.
+- Save completed scan results to an atomic checkpoint after each URL finishes.
+- Resume interrupted scans without rechecking completed URLs; checkpoint inputs are validated before reuse.
 - Print a summary line at the end of every run.
 - Simple command-line interface with built-in help.
 
@@ -56,6 +58,7 @@ pingpanda/
 ├── models.py            Data model for a checked URL
 ├── network.py           URL preparation, address lookup, and checks
 ├── report.py            Grouping, formatting, and saving results
+├── checkpoint.py       Atomic checkpoint storage and validation
 └── cli.py               Argument parsing and application flow
 tests/                   Test suite (no external network access)
 .github/                 CI workflow and issue/PR templates
@@ -150,6 +153,8 @@ https://python.org
 | `-d`, `--domain` | Check a single URL or domain |
 | `-l`, `--list` | Check every URL in a text file, one per line |
 | `-o`, `--output` | Save the report to a file |
+| `--checkpoint PATH` | Choose where scan progress is saved (default: `.pingpanda-checkpoint.json`) |
+| `--resume` | Resume from the selected checkpoint, skipping completed URLs |
 | `-v`, `--version` | Show version information |
 | `-h`, `--help` | Show the help text |
 
