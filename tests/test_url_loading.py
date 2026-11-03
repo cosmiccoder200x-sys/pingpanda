@@ -9,7 +9,7 @@ KNOWN_DEFECT = "known defect - see the FOSSSoC-S1 issue tracker"
 
 def test_domain_option_is_used(checker):
     args = checker.parse_arguments(["-d", "https://example.com"])
-    assert checker.load_urls(args) == {"https://example.com"}
+    assert checker.load_urls(args) == ["https://example.com"]
 
 
 def test_list_option_is_used(checker, tmp_path):
@@ -17,7 +17,7 @@ def test_list_option_is_used(checker, tmp_path):
     list_file.write_text("https://a.test\nhttps://b.test\n", encoding="utf-8")
 
     args = checker.parse_arguments(["-l", str(list_file)])
-    assert checker.load_urls(args) == {"https://a.test", "https://b.test"}
+    assert checker.load_urls(args) == ["https://a.test", "https://b.test"]
 
 
 def test_without_input_no_url_is_loaded(checker):
