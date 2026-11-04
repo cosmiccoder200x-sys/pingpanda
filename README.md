@@ -226,6 +226,12 @@ python -m pytest tests/test_cli.py::test_version_option_prints_a_version
 The suite does not use the public internet. HTTP responses are simulated, and a
 temporary server on `localhost` is used where a real socket is needed.
 
+### Troubleshooting
+
+Having trouble installing or running PingPanda? Check our
+[Troubleshooting Guide](docs/troubleshooting.md) for solutions
+to common setup and runtime problems.
+
 ## Contributing
 
 Contributions of all sizes are welcome: bug reports, documentation

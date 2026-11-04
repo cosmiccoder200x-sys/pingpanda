@@ -10,6 +10,22 @@ import pytest
 
 KNOWN_DEFECT = "known defect - see the FOSSSoC-S1 issue tracker"
 
+@pytest.mark.parametrize(
+    ("url", "expected_port"),
+    [
+        ("http://example.com/", 80),
+        ("https://example.com/", 443),
+        ("http://example.com:8000/", 8000),
+    ],
+)
+def test_resolve_ip_and_port_uses_correct_port(
+    checker, fake_dns, url, expected_port
+):
+    result = checker.network.resolve_ip_and_port(url)
+
+    assert result.endswith(f":{expected_port}")
+
+
 
 async def test_successful_request_reports_the_status(checker, fake_dns):
     def handler(request):
