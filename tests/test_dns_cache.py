@@ -267,3 +267,51 @@ def test_invalid_dns_cache_cli_options_are_rejected(checker, option, value):
 def test_dns_cache_rejects_invalid_configuration(kwargs):
     with pytest.raises(ValueError):
         DnsCache(**kwargs)
+
+
+async def test_check_all_shares_one_dns_lookup_for_same_host(
+    checker, mock_transport, monkeypatch
+):
+    import httpx
+
+    calls = 0
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def resolver(hostname, port):
+        nonlocal calls
+        calls += 1
+        started.set()
+        await release.wait()
+        return f"203.0.113.55:{port}"
+
+    real_cache = DnsCache
+
+    def cache_factory(**kwargs):
+        return real_cache(resolver=resolver, **kwargs)
+
+    monkeypatch.setattr(checker.network, "DnsCache", cache_factory)
+    mock_transport(lambda request: httpx.Response(200))
+
+    urls = [
+        "https://same.test/a",
+        "https://same.test/b",
+        "https://same.test/c",
+        "https://same.test/d",
+    ]
+
+    scan = asyncio.create_task(
+        checker.check_all(urls, max_concurrent=4, show_progress=False)
+    )
+
+    await started.wait()
+    await asyncio.sleep(0)
+    release.set()
+
+    results = await scan
+
+    assert len(results) == 4
+    assert calls == 1
+    assert {result.ip_port for result in results.values()} == {
+        "203.0.113.55:443"
+    }
