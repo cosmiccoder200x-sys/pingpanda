@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import socket
 import time
 from collections import OrderedDict
@@ -41,16 +42,33 @@ class DnsCache:
         resolver: Resolver | None = None,
         clock: Callable[[], float] = time.monotonic,
     ):
-        if ttl < 0:
-            raise ValueError("DNS cache TTL must not be negative")
-        if negative_ttl < 0:
-            raise ValueError("DNS negative-cache TTL must not be negative")
+        if (
+            isinstance(ttl, bool)
+            or not isinstance(ttl, (int, float))
+            or not math.isfinite(ttl)
+            or ttl < 0
+        ):
+            raise ValueError("DNS cache TTL must be a finite, non-negative number")
+        if (
+            isinstance(negative_ttl, bool)
+            or not isinstance(negative_ttl, (int, float))
+            or not math.isfinite(negative_ttl)
+            or negative_ttl < 0
+        ):
+            raise ValueError(
+                "DNS negative-cache TTL must be a finite, non-negative number"
+            )
         if isinstance(max_entries, bool) or not isinstance(max_entries, int):
             raise ValueError("DNS cache size must be a positive integer")
         if max_entries <= 0:
             raise ValueError("DNS cache size must be a positive integer")
-        if timeout <= 0:
-            raise ValueError("DNS timeout must be greater than zero")
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or not math.isfinite(timeout)
+            or timeout <= 0
+        ):
+            raise ValueError("DNS timeout must be a finite, positive number")
 
         self.ttl = float(ttl)
         self.negative_ttl = float(negative_ttl)
