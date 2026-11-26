@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import math
-import socket
 import time
 from urllib.parse import urlparse
 
