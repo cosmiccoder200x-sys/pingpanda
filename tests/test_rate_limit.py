@@ -218,6 +218,46 @@ async def test_check_url_status_honours_numeric_retry_after(checker):
     assert clock.value == 3
 
 
+async def test_503_retry_after_defers_host_even_without_retry(checker):
+    clock = _Clock()
+    limiter = HostRateLimiter(
+        clock=clock,
+        sleep=clock.sleep,
+        poll_interval=10,
+    )
+
+    async def dns_resolver(hostname, port):
+        return f"203.0.113.12:{port}"
+
+    dns_cache = DnsCache(resolver=dns_resolver)
+
+    class Session:
+        async def get(self, url, **kwargs):
+            request = httpx.Request("GET", url)
+            return httpx.Response(
+                503,
+                headers={"Retry-After": "4"},
+                request=request,
+            )
+
+    result = await checker.check_url_status(
+        Session(),
+        0,
+        "https://throttled.test/api",
+        max_retries=0,
+        dns_cache=dns_cache,
+        host_limiter=limiter,
+    )
+
+    assert result.status == 503
+    assert limiter.cooldown_remaining("https://throttled.test/other") == 4
+
+    async with limiter.limit("https://throttled.test/other"):
+        pass
+
+    assert clock.value == 4
+
+
 async def test_invalid_retry_after_falls_back_to_existing_backoff(checker):
     clock = _Clock()
     limiter = HostRateLimiter(
@@ -314,3 +354,13 @@ def test_per_host_cli_default_and_custom_value(checker):
 def test_invalid_per_host_cli_value_is_rejected(checker, value):
     with pytest.raises(SystemExit):
         checker.parse_arguments(["--per-host-concurrent", value])
+
+
+@pytest.mark.parametrize("value", [0, -1, "2", 1.5, True])
+async def test_check_all_rejects_invalid_per_host_concurrency(checker, value):
+    with pytest.raises(ValueError, match="positive integer"):
+        await checker.check_all(
+            [],
+            per_host_concurrent=value,
+            show_progress=False,
+        )
