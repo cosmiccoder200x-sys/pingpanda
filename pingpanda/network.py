@@ -377,7 +377,7 @@ async def check_all(
                         dns_cache=dns_cache,
                         host_limiter=host_limiter,
                         cancellation_token=cancellation_token,
-                        )
+                    )
                     except RateLimitCancelled:
                         if (
                             cancellation_token is not None
