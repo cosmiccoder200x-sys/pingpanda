@@ -29,8 +29,13 @@ def host_key(url: str) -> tuple[str, int]:
         raise ValueError("URL does not contain a hostname")
 
     hostname = hostname.rstrip(".").lower()
-    if parsed.port is not None:
-        port = parsed.port
+    try:
+        explicit_port = parsed.port
+    except ValueError:
+        explicit_port = 0
+
+    if explicit_port is not None:
+        port = explicit_port
     elif parsed.scheme == "http":
         port = 80
     else:
